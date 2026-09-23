@@ -57,16 +57,41 @@ from . import kml_ingest
 
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 
-ENGINES = {}        # river display name -> TwinEngine, filled in serve()
+ENGINES = {}        # river display name -> TwinEngine
 _SEED = 42
 _GAUGE_CSV = None
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024   # 25 MB — generous for a hand-traced KML
 
 
+def _load_engines(seed=42, gauge_csv=None):
+    return {
+        name: TwinEngine(river, seed=seed, gauge_csv=gauge_csv)
+        for name, river in load_all_rivers().items()
+    }
+
+
+if os.environ.get("VERCEL"):
+    ENGINES = _load_engines()
+
+
 def _pick_engine(q):
     name = q.get("river", [DEFAULT_RIVER])[0]
-    return ENGINES.get(name, ENGINES.get(DEFAULT_RIVER) or next(iter(ENGINES.values())))
+    engine = ENGINES.get(name)
+    if engine is None:
+        normalized = "".join(ch for ch in name.casefold() if ch.isalnum())
+        engine = next(
+            (candidate for display_name, candidate in ENGINES.items()
+             if "".join(ch for ch in display_name.casefold() if ch.isalnum()) == normalized),
+            None,
+        )
+    if engine is None:
+        engine = ENGINES.get(DEFAULT_RIVER)
+    if engine is None and ENGINES:
+        engine = next(iter(ENGINES.values()))
+    if engine is None:
+        raise RuntimeError("no rivers are loaded")
+    return engine
 
 
 def _pick_dt(q):
@@ -106,6 +131,8 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         q = parse_qs(u.query)
         try:
+            if u.path == "/favicon.ico":
+                return self._send(204, b"", "image/x-icon")
             if u.path in ("/", "/index.html", "/dashboard"):
                 with open(os.path.join(STATIC, "dashboard.html"), "rb") as f:
                     return self._send(200, f.read(), "text/html; charset=utf-8")
@@ -247,8 +274,7 @@ def serve(port=8080, seed=42, gauge_csv=None):
     global ENGINES, _SEED, _GAUGE_CSV
     _SEED = seed
     _GAUGE_CSV = gauge_csv
-    rivers = load_all_rivers()
-    ENGINES = {name: TwinEngine(river, seed=seed, gauge_csv=gauge_csv) for name, river in rivers.items()}
+    ENGINES = _load_engines(seed=seed, gauge_csv=gauge_csv)
     httpd = HTTPServer(("0.0.0.0", port), Handler)
     print(f"NadiTwin demo running at http://localhost:{port}  (Ctrl+C to stop)")
     print("Rivers loaded:", ", ".join(ENGINES.keys()))
