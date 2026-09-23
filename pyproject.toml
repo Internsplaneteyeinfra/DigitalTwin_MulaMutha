@@ -1,2 +1,9 @@
+[project]
+name = "naditwin"
+version = "0.1.0"
+description = "Multi-river digital twin dashboard"
+requires-python = ">=3.12"
+dependencies = []
+
 [tool.vercel]
 entrypoint = "naditwin.server:Handler"
