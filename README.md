@@ -65,6 +65,11 @@ file (not `.kmz`) and click **Add river**. This runs
   forecast/margin/alert engine for it (see "Time model" below) — no
   extra step needed.
 
+On Vercel, uploaded river files are written to the function's temporary
+`/tmp` storage because the deployed application bundle is read-only. That
+storage is ephemeral and is not shared across cold starts, so uploaded
+rivers should be treated as session data in the serverless deployment.
+
 Every bridge/locality/confluence gets a **persistent name label** next
 to its marker on the map (toggle with the "Area names" button, same
 idea as the chainage-number toggle), so you can see at a glance which
@@ -203,5 +208,6 @@ re-uploading the same name replaces it),
 `river` is optional everywhere except `/api/rivers`/`/api/timerange`
 (defaults to Mula-Mutha). `at` is optional everywhere it's accepted;
 omitting it means live/current time.
-#   D i g i t a l T w i n _ M u l a M u t h a  
+#   D i g i t a l T w i n _ M u l a M u t h a 
+ 
  

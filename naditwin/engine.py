@@ -96,11 +96,11 @@ def hours_since_epoch(dt):
 class RiverData:
     """Loads and holds the REAL, pre-computed geometry layers for one river."""
 
-    def __init__(self, key, display_name, product_label):
+    def __init__(self, key, display_name, product_label, data_dir=None):
         self.key = key
         self.display_name = display_name
         self.product_label = product_label
-        d = os.path.join(RIVERS_DIR, key)
+        d = os.path.join(data_dir or RIVERS_DIR, key)
 
         with open(os.path.join(d, "chainage_profile.json")) as f:
             stations = json.load(f)
@@ -156,16 +156,16 @@ def load_builtin_rivers():
     }
 
 
-def discover_uploaded_rivers(existing_keys):
+def discover_uploaded_rivers(existing_keys, data_dir=RIVERS_DIR):
     """Scan naditwin/rivers/ for folders carrying a meta.json (written by
     kml_ingest.build_river_from_kml) that aren't one of the built-ins — i.e.
     rivers added via the /api/upload_kml endpoint in an earlier run. Lets an
     uploaded river survive a server restart without re-uploading the KML."""
     out = {}
-    if not os.path.isdir(RIVERS_DIR):
+    if not os.path.isdir(data_dir):
         return out
-    for slug in sorted(os.listdir(RIVERS_DIR)):
-        d = os.path.join(RIVERS_DIR, slug)
+    for slug in sorted(os.listdir(data_dir)):
+        d = os.path.join(data_dir, slug)
         meta_path = os.path.join(d, "meta.json")
         if slug in existing_keys or not os.path.isfile(meta_path):
             continue
@@ -180,6 +180,7 @@ def discover_uploaded_rivers(existing_keys):
                     f"NadiTwin — {display_name} (uploaded KML, "
                     f"{m.get('landmarks_source', 'auto')} landmarks)"
                 ),
+                data_dir=data_dir,
             )
             out[display_name] = rd
         except Exception:
@@ -190,7 +191,8 @@ def discover_uploaded_rivers(existing_keys):
 def load_all_rivers():
     rivers = load_builtin_rivers()
     existing_keys = {cfg["key"] for cfg in BUILTIN_RIVERS.values()}
-    rivers.update(discover_uploaded_rivers(existing_keys))
+    upload_dir = os.path.join("/tmp", "naditwin", "rivers") if os.environ.get("VERCEL") else RIVERS_DIR
+    rivers.update(discover_uploaded_rivers(existing_keys, upload_dir))
     return rivers
 
 

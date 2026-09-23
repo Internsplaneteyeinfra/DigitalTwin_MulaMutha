@@ -44,6 +44,11 @@ import xml.etree.ElementTree as ET
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RIVERS_DIR = os.path.join(HERE, "rivers")
+UPLOADS_DIR = (
+    os.path.join("/tmp", "naditwin", "rivers")
+    if os.environ.get("VERCEL")
+    else RIVERS_DIR
+)
 
 DEFAULT_CHAINAGE_STEP_M = 100.0   # user-requested: chainage-wise change every 100 m
 DEFAULT_WIDTH_M = 25.0            # fallback when KML gives no width info (LineString-only)
@@ -483,7 +488,7 @@ def build_river_from_kml(kml_text, display_name, chainage_step_m=DEFAULT_CHAINAG
         landmarks = _auto_landmarks(stations, total_len, seed=hash(display_name) & 0xFFFFFFFF)
 
     slug = slugify(display_name)
-    out_dir = os.path.join(RIVERS_DIR, slug)
+    out_dir = os.path.join(UPLOADS_DIR, slug)
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "chainage_profile.json"), "w") as f:
         json.dump(stations, f, indent=2)

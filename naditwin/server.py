@@ -206,7 +206,7 @@ class Handler(BaseHTTPRequestHandler):
                 for old_name in [n for n in ENGINES if n not in BUILTIN_RIVERS and n != display_name]:
                     old_eng = ENGINES.pop(old_name, None)
                     if old_eng is not None:
-                        old_dir = os.path.join(kml_ingest.RIVERS_DIR, old_eng.river.key)
+                        old_dir = os.path.join(kml_ingest.UPLOADS_DIR, old_eng.river.key)
                         if os.path.isdir(old_dir):
                             shutil.rmtree(old_dir, ignore_errors=True)
 
@@ -230,7 +230,7 @@ class Handler(BaseHTTPRequestHandler):
                 if eng is None:
                     return self._send(404, {"error": f'river "{name}" not found'})
                 slug = eng.river.key
-                d = os.path.join(kml_ingest.RIVERS_DIR, slug)
+                d = os.path.join(kml_ingest.UPLOADS_DIR, slug)
                 if os.path.isdir(d):
                     shutil.rmtree(d, ignore_errors=True)
                 return self._send(200, {"removed": name})
