@@ -1,0 +1,66 @@
+[
+  {
+    "name": "Sangam",
+    "chainage_m": 621.9,
+    "chainage_km": 0.622,
+    "lon": 73.8602323,
+    "lat": 18.5312091,
+    "snap_distance_m": 63.0
+  },
+  {
+    "name": "Bund Garden",
+    "chainage_m": 3451.9,
+    "chainage_km": 3.452,
+    "lon": 73.8831,
+    "lat": 18.543024,
+    "snap_distance_m": 271.4
+  },
+  {
+    "name": "Dhanori",
+    "chainage_m": 5901.9,
+    "chainage_km": 5.902,
+    "lon": 73.9060224,
+    "lat": 18.541172,
+    "snap_distance_m": 5106.6
+  },
+  {
+    "name": "Wadgaon Sheri",
+    "chainage_m": 7531.9,
+    "chainage_km": 7.532,
+    "lon": 73.9212497,
+    "lat": 18.5389918,
+    "snap_distance_m": 1602.9
+  },
+  {
+    "name": "Kharadi",
+    "chainage_m": 10751.9,
+    "chainage_km": 10.752,
+    "lon": 73.9459669,
+    "lat": 18.5452834,
+    "snap_distance_m": 808.6
+  },
+  {
+    "name": "Mundhwa",
+    "chainage_m": 9561.9,
+    "chainage_km": 9.562,
+    "lon": 73.9397677,
+    "lat": 18.5366124,
+    "snap_distance_m": 656.1
+  },
+  {
+    "name": "Hadapsar",
+    "chainage_m": 9131.9,
+    "chainage_km": 9.132,
+    "lon": 73.9359156,
+    "lat": 18.5356352,
+    "snap_distance_m": 3507.2
+  },
+  {
+    "name": "Manjari",
+    "chainage_m": 15521.9,
+    "chainage_km": 15.522,
+    "lon": 73.9823958,
+    "lat": 18.5286054,
+    "snap_distance_m": 2120.2
+  }
+]

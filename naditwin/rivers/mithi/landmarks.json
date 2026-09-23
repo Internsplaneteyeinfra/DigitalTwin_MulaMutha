@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Vakola",
+    "chainage_m": 1960.0,
+    "chainage_km": 1.96,
+    "lon": 72.8717103,
+    "lat": 19.0754588,
+    "snap_distance_m": 2041.5
+  },
+  {
+    "name": "Kurla",
+    "chainage_m": 2430.0,
+    "chainage_km": 2.43,
+    "lon": 72.8731081,
+    "lat": 19.0715042,
+    "snap_distance_m": 646.0
+  },
+  {
+    "name": "BKC",
+    "chainage_m": 3300.0,
+    "chainage_km": 3.3,
+    "lon": 72.871651,
+    "lat": 19.0639449,
+    "snap_distance_m": 474.0
+  },
+  {
+    "name": "Kalina",
+    "chainage_m": 5280.0,
+    "chainage_km": 5.28,
+    "lon": 72.8584055,
+    "lat": 19.0555244,
+    "snap_distance_m": 2261.4
+  },
+  {
+    "name": "Dharavi",
+    "chainage_m": 6300.0,
+    "chainage_km": 6.3,
+    "lon": 72.85105,
+    "lat": 19.0497152,
+    "snap_distance_m": 839.5
+  },
+  {
+    "name": "N\u2013Mahim",
+    "chainage_m": 7700.0,
+    "chainage_km": 7.7,
+    "lon": 72.8398131,
+    "lat": 19.0480387,
+    "snap_distance_m": 318.5
+  },
+  {
+    "name": "Mahim Creek mouth",
+    "chainage_m": 7760.0,
+    "chainage_km": 7.76,
+    "lon": 72.8392525,
+    "lat": 19.0480339,
+    "snap_distance_m": 1071.1
+  }
+]

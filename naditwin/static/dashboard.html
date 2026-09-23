@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RIVER EYE — Multi-River Reach Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --obs:#1f77b4; --fc:#7e57c2; --bed:#8d6e63; --crest:#37474f;
+    --danger:#c62828; --warn:#fdd835; --watch:#2e7d32; --safe:#1565c0;
+    --bg:#f4f6f8; --card:#ffffff; --ink:#1a2733; --muted:#5f6b76;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#0b3556;color:#fff;padding:14px 22px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{margin:0;font-size:22px;letter-spacing:.5px}
+  header .sub{opacity:.8;font-size:13px}
+  .wrap{max-width:1280px;margin:0 auto;padding:18px 22px;display:grid;
+        grid-template-columns:2fr 1fr;gap:16px}
+  .card{background:var(--card);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);
+        padding:14px 16px}
+  .card h2{margin:0 0 8px;font-size:15px;color:#0b3556}
+  .full{grid-column:1/-1}
+  .row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .stat{background:#eef3f8;border-radius:8px;padding:8px 14px;font-size:13px}
+  .stat b{font-size:17px;display:block;color:#0b3556}
+  .river-sel select{padding:6px 10px;border-radius:6px;border:1.5px solid #0b3556;
+                     font-size:13px;color:#0b3556;font-weight:600;cursor:pointer}
+  .river-sel{display:flex;align-items:center;gap:8px}
+  .river-sel label{font-size:12px;color:var(--muted)}
+  .stepper{display:flex;align-items:center;gap:0;border:2px solid #0b3556;border-radius:8px;overflow:hidden}
+  .stepper label{background:#eef3f8;padding:6px 10px;font-size:12px;color:#0b3556;font-weight:600;white-space:nowrap;border-right:1px solid #c7d0d9}
+  .stepper button{border-radius:0;padding:6px 14px;font-size:18px;line-height:1;background:#0b3556;border:none}
+  .stepper button:hover{background:#124a77}
+  .stepper input[type=number]{width:62px;border:none;border-left:1px solid #c7d0d9;
+         border-right:1px solid #c7d0d9;padding:6px 4px;font-size:14px;font-weight:700;
+         text-align:center;color:#0b3556;outline:none;-moz-appearance:textfield}
+  .stepper input[type=number]::-webkit-inner-spin-button,
+  .stepper input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  .legend{font-size:12px;color:var(--muted);margin-top:4px}
+  .legend span{display:inline-block;margin-right:14px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+  input[type=range]{width:100%}
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  @media (max-width:820px){.board{grid-template-columns:repeat(2,1fr)}}
+  .asset{border-radius:8px;padding:10px;color:#fff;font-size:12.5px}
+  .asset b{font-size:14px;display:block;margin-bottom:2px}
+  .asset .m{font-size:20px;font-weight:700}
+  .DANGER{background:var(--danger)} .WARNING{background:var(--warn);color:#3a2f00}
+  .WATCH{background:var(--watch)} .SAFE{background:var(--safe)}
+  .alert{border-left:4px solid var(--danger);background:#fdecea;padding:8px 10px;
+         margin-bottom:8px;border-radius:4px;font-size:13px}
+  .alert.WATCH{border-color:var(--watch);background:#eaf5ea}
+  .alert.WARNING{border-color:var(--warn);background:#fffde7}
+  .alert small{color:var(--muted);display:block;margin-top:3px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:6px 8px;border-bottom:1px solid #e3e8ee;text-align:left}
+  th{color:#0b3556}
+  button{background:#0b3556;color:#fff;border:0;border-radius:6px;padding:8px 14px;
+         font-size:13px;cursor:pointer}
+  button:hover{background:#124a77}
+  select{padding:6px;border-radius:6px;border:1px solid #c7d0d9;font-size:13px}
+  .note{font-size:11.5px;color:var(--muted);margin-top:6px}
+  #nochart{display:none;padding:20px;color:var(--danger);font-weight:600}
+  canvas{max-height:340px}
+  #map{height:380px;border-radius:8px}
+  .maplegend{font-size:12px;color:var(--muted);margin-top:6px;display:flex;flex-wrap:nowrap;align-items:center;gap:6px 14px;overflow-x:auto;white-space:nowrap}
+  .maplegend span{display:inline-flex;align-items:center;gap:4px;margin-right:0;flex-shrink:0}
+  .swatch{display:inline-block;width:18px;height:3px;margin-right:5px;vertical-align:2px}
+  /* refresh / auto-advance bar */
+  .refresh-bar{display:flex;align-items:center;gap:14px;padding:6px 14px;
+               background:#f0f4f8;border-radius:6px;font-size:12px;color:#37474f;flex-wrap:wrap}
+  .refresh-bar b{color:#0b3556}
+  .refresh-bar select{padding:3px 8px;border-radius:5px;border:1px solid #c7d0d9;font-size:12px}
+  /* auto-advance pill */
+  .aa-pill{display:flex;align-items:center;gap:6px;background:#e8f0fe;
+           border:1px solid #b3c6f7;border-radius:20px;padding:3px 10px;font-size:12px;color:#1a3a7a}
+  .aa-pill select{background:transparent;border:none;font-size:12px;color:#1a3a7a;
+                  font-weight:600;padding:0 2px;outline:none;cursor:pointer}
+  .aa-pill.off{background:#f0f4f8;border-color:#c7d0d9;color:var(--muted)}
+  .mode-pill{display:flex;align-items:center;gap:6px;background:#e6f6ea;border:1px solid #8fd4a3;
+             border-radius:20px;padding:4px 12px;font-size:12px;color:#1b5e20;cursor:pointer;user-select:none}
+  .mode-pill.off{background:#f0f4f8;border-color:#c7d0d9;color:var(--muted)}
+  .mode-pill.off .pulse{display:none}
+  #histPickers input,#histPickers select{padding:4px 8px;border-radius:5px;border:1px solid #c7d0d9;font-size:12px}
+  .lm-table{max-height:220px;overflow-y:auto}
+  .lm-badge{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700}
+  .lm-badge.bridge{background:#e3edfb;color:#0b3556}
+  .lm-badge.confluence{background:#fdecea;color:#c62828}
+  .lm-badge.locality{background:#eef3f8;color:#5f6b76}
+  .lm-badge.auto{opacity:.65}
+  /* sim-clock highlight when auto-advancing */
+  .advancing b{color:#1565c0!important;animation:clockTick .4s ease}
+  @keyframes clockTick{0%{opacity:.3}100%{opacity:1}}
+  .pulse{display:inline-block;width:8px;height:8px;border-radius:50%;
+         background:#43a047;margin-right:4px;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  /* loading overlay */
+  #loadOverlay{position:fixed;inset:0;background:#f0f4f8;display:flex;
+               flex-direction:column;align-items:center;justify-content:center;
+               z-index:9999;transition:opacity .4s}
+  #loadOverlay.done{opacity:0;pointer-events:none}
+  .spinner{width:48px;height:48px;border:5px solid #c7d0d9;
+           border-top-color:#0b3556;border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loadMsg{margin-top:16px;font-size:14px;color:#0b3556;font-weight:600}
+  /* map asset markers */
+  .map-asset-wrap{width:26px;height:26px;display:flex;align-items:center;justify-content:center}
+  .map-asset-dot{
+    width:14px;height:14px;border-radius:50%;
+    background:#c62828;
+    box-shadow:0 1px 5px rgba(0,0,0,.45);
+    transition:background .4s;
+  }
+  .map-asset-dot.DANGER{background:#c62828;animation:dangerRing 1.4s ease-out infinite}
+  .map-asset-dot.WARNING{background:#fdd835}
+  .map-asset-dot.WATCH  {background:#2e7d32}
+  .map-asset-dot.SAFE   {background:#1565c0}
+  @keyframes dangerRing{
+    0%  {box-shadow:0 0 0 0    rgba(198,40,40,.85)}
+    70% {box-shadow:0 0 0 14px rgba(198,40,40,0)}
+    100%{box-shadow:0 0 0 0    rgba(198,40,40,0)}
+  }
+  .leaflet-div-icon{background:transparent!important;border:none!important}
+  .chainage-label{background:rgba(0,0,0,.55)!important;border:none!important;color:#ffe000!important;
+    font-size:10px!important;font-weight:700;padding:0 3px!important;box-shadow:none!important}
+  .chainage-label::before{display:none!important}
+  .area-name-label{background:rgba(11,53,86,.85)!important;border:none!important;color:#fff!important;
+    font-size:11px!important;font-weight:700;padding:1px 6px!important;border-radius:3px;box-shadow:none!important}
+  .area-name-label::before{display:none!important}
+</style>
+</head>
+<body>
+<div id="loadOverlay">
+  <div class="spinner"></div>
+  <div id="loadMsg">Loading NadiTwin…</div>
+</div>
+<header>
+  <h1>RIVER EYE</h1>
+  <div class="sub" id="headsub">River Intelligence</div>
+</header>
+
+<!-- ── always-visible river picker: nothing else loads until a river is chosen ── -->
+<div class="wrap" style="padding-bottom:0">
+  <div class="card full">
+    <h2 style="margin-bottom:10px">Choose a river</h2>
+    <div class="row">
+      <div class="river-sel">
+        <label>River</label>
+        <select id="riverSel" onchange="switchRiver(this.value)">
+          <option value="">— select a river —</option>
+        </select>
+        <button id="removeRiverBtn" onclick="removeRiver()" title="Remove this uploaded river"
+          style="display:none;background:#c62828;padding:6px 10px">✕ Remove</button>
+      </div>
+      <div class="river-sel">
+        <label>Upload river KML</label>
+        <input type="file" id="kmlFile" accept=".kml" style="font-size:12px;max-width:170px">
+        <button onclick="uploadKml()" style="padding:6px 12px">Add river</button>
+      </div>
+    </div>
+    <div class="note" id="uploadNote"></div>
+  </div>
+</div>
+
+<div class="wrap" id="blankState">
+  <div class="card full" style="text-align:center;padding:70px 20px">
+    <div style="font-size:16px;font-weight:700;color:#0b3556;margin-bottom:6px">No river selected</div>
+    <div class="note" style="font-size:13px">Pick a river from the dropdown above, or upload a river KML and click "Add river", to see the map and data.</div>
+  </div>
+</div>
+
+<div id="mainContent" style="display:none">
+
+<div class="wrap" style="padding-bottom:0">
+  <div class="card full">
+    <h2 id="reachTitle">Reach location (traced from KML, real polygon + extracted centerline)</h2>
+    <div id="map"></div>
+    <div class="maplegend">
+      <span><span class="swatch" style="background:#2dc0fb"></span>Traced river polygon</span>
+      <span><span class="swatch" style="background:#ffee58"></span>Centerline / chainage</span>
+      <span><svg width="14" height="14"><circle cx="7" cy="7" r="2.5" fill="#ffe000"/></svg>Chainage (~1 km)</span>
+      <span>
+        <button id="chNoToggle" onclick="toggleChainageNos()"
+          style="border:1px solid #ffd600;background:#fff9d6;color:#7a6400;border-radius:12px;
+                 padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer">Chainage no.: ON</button>
+      </span>
+      <span>
+        <button id="areaNameToggle" onclick="toggleAreaNames()"
+          style="border:1px solid #90caf9;background:#e3f2fd;color:#0b3556;border-radius:12px;
+                 padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer">Area names: ON</button>
+      </span>
+      <span><svg width="14" height="14"><circle cx="7" cy="7" r="7" fill="#c62828"/></svg>DANGER</span>
+      <span><svg width="14" height="14"><circle cx="7" cy="7" r="7" fill="#fdd835"/></svg>WARNING</span>
+      <span><svg width="14" height="14"><circle cx="7" cy="7" r="7" fill="#2e7d32"/></svg>WATCH</span>
+      <span><svg width="14" height="14"><circle cx="7" cy="7" r="7" fill="#1565c0"/></svg>SAFE</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card full">
+
+    <!-- ── live / historic time-control bar ── -->
+    <div class="refresh-bar" style="margin-bottom:10px">
+      <span class="mode-pill" id="modeLive" onclick="setMode('live')">
+        <span class="pulse"></span><b>Live</b>
+      </span>
+      <span class="mode-pill off" id="modeHist" onclick="setMode('historic')">
+        🕐 <b>Historic</b>
+      </span>
+
+      <span id="histPickers" style="display:none;align-items:center;gap:8px">
+        <input type="date" id="histDate" onchange="onHistChange()">
+        <select id="histHour" onchange="onHistChange()"></select>
+      </span>
+
+      <span>Simulation clock: <b id="simClock">–</b></span>
+      <span id="liveNote" style="color:var(--muted)">auto-refreshing every 1 min</span>
+
+      <div class="stepper">
+        <label>Manual step</label>
+        <button onclick="stepHistoric(-1)" title="Step back">−</button>
+        <input type="number" id="stepHours" value="1" min="1" max="24">
+        <button onclick="stepHistoric(1)" title="Step forward">+</button>
+      </div>
+    </div>
+
+    <!-- stats + shared bridge/segment selector (drives stage, hydrograph, discharge) -->
+    <div class="row">
+      <div class="stat">Upstream discharge now<b id="qnow">–</b></div>
+      <div class="stat">Reach<b id="reachstat">–</b></div>
+      <div class="stat">Bridges on reach<b id="bridgestat">–</b></div>
+      <div class="stat">Ensemble<b>50 members · 72 h forecast</b></div>
+      <div class="river-sel">
+        <label>Bridge / area</label>
+        <select id="bridgeSel" onchange="onBridgeSelChange()"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card full">
+    <h2>Discharge — today <span style="font-weight:400;color:var(--muted);font-size:12px" id="todayDateLbl"></span></h2>
+    <div class="note" style="margin-top:0">Solid = observed so far today · dashed = forecast to end of day. Advances automatically every minute in Live mode.</div>
+    <canvas id="todayQ"></canvas>
+    <div class="row" style="margin-top:8px;gap:10px">
+      <span style="font-size:12px;color:var(--muted);white-space:nowrap">00:00</span>
+      <input type="range" id="todayHourSlider" min="0" max="23" step="1" value="0" oninput="onTodaySlider(this.value)" style="flex:1">
+      <span style="font-size:12px;color:var(--muted);white-space:nowrap">23:00</span>
+      <div class="stat" style="white-space:nowrap">Hour<b id="todayHourLbl">–</b></div>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--obs)"></span>Observed (00:00 → now)</span>
+      <span><span class="dot" style="background:var(--fc)"></span>Forecast median (now → 23:00)</span>
+      <span><span class="dot" style="background:#c9b8e8"></span>P10–P90 band</span>
+    </div>
+  </div>
+
+  <div class="card full">
+    <h2>River stage — <span id="profileSegLbl">–</span> <span style="font-weight:400;color:var(--muted);font-size:12px">(observed vs forecast, confidence fog = P10–P90)</span></h2>
+    <div id="nochart">Chart.js failed to load (offline?). APIs still work at /api/*.</div>
+    <canvas id="profile"></canvas>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1">
+        <input type="range" id="lead" min="1" max="72" value="24"
+               oninput="leadLabel.textContent='+'+this.value+' h'; drawProfile()">
+      </div>
+      <div class="stat">Forecast lead <b id="leadLabel">+24 h</b></div>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--obs)"></span>Observed WSE (now)</span>
+      <span><span class="dot" style="background:var(--fc)"></span>Forecast median</span>
+      <span><span class="dot" style="background:#c9b8e8"></span>P10–P90 band</span>
+      <span><span class="dot" style="background:var(--bed)"></span>Inferred bed (±σ shading)</span>
+      <span><span class="dot" style="background:var(--crest)"></span>Embankment crest</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Hydrograph at <span id="hydroPointLbl">–</span></h2>
+    <canvas id="hydro"></canvas>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--obs)"></span>Observed (past 72 h)</span>
+      <span><span class="dot" style="background:var(--fc)"></span>Ensemble median</span>
+      <span><span class="dot" style="background:#d32f2f"></span>Asset threshold</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Active alerts</h2>
+    <div id="alerts"></div>
+    <div class="note">Probability of exceedance + time-to-threshold + current margin.</div>
+  </div>
+
+  <div class="card full">
+    <h2>Margin board — margin to threshold per protected asset</h2>
+    <div class="board" id="board"></div>
+    <div class="note">SAFE &lt;10% · WATCH ≥10% · WARNING ≥30% · DANGER ≥60% probability of 72 h exceedance.</div>
+  </div>
+</div>
+
+</div><!-- /mainContent -->
+
+<script>
+const GOOGLE_MAPS_API_KEY = "";
+
+let META=null, profileChart=null, hydroChart=null, ACTIVE_RIVER=null, _leafletMap=null;
+let _liveTimer=null;
+let _assetMarkers={};
+let _chainageMarkers=[], _chainageNoVisible=true;
+let _areaNamesVisible=true;
+let MODE="live";        // "live" | "historic"
+let HIST_AT=null;        // ISO8601 UTC string, set when MODE==="historic"
+let FUTURE_OFFSET_H=0;   // hours ahead of real "now" being previewed while
+                          // still in Live mode (manual step forward) — does
+                          // NOT touch HIST_AT or the Historic date/hour picker
+
+// ── helpers ──────────────────────────────────────────────────────────────
+const $=id=>document.getElementById(id);
+async function j(u,opt){const r=await fetch(u,opt);return r.json();}
+function decimate(arr,step){const o=[];for(let i=0;i<arr.length;i+=step)o.push(arr[i]);return o;}
+const STEP=4;
+function decimateAdaptive(arr,target){
+  target=target||80;
+  const step=Math.max(1,Math.floor(arr.length/target));
+  return decimate(arr,step);
+}
+
+// ── shared bridge/segment selector (drives stage, hydrograph, discharge) ──
+function _bridgeIdx(){
+  const id=$("bridgeSel").value;
+  const idx=(META.assets||[]).findIndex(a=>a.id===id);
+  return idx>=0?idx:0;
+}
+function _segmentLabel(idx){
+  const a=META.assets[idx];
+  const b=META.assets[idx+1];
+  return b?`${a.name} \u2192 ${b.name}`:`${a.name} \u2192 end of reach`;
+}
+function _segmentCellRange(idx){
+  const chKm=META.chainage_km;
+  const startCh=META.assets[idx].chainage_m;
+  const nextAsset=META.assets[idx+1];
+  let i0=chKm.findIndex(v=>v*1000>=startCh);
+  if(i0<0)i0=0;
+  let i1;
+  if(nextAsset){
+    i1=chKm.findIndex(v=>v*1000>=nextAsset.chainage_m);
+    if(i1<0)i1=chKm.length-1;
+  }else{
+    i1=chKm.length-1;
+  }
+  if(i1<=i0)i1=Math.min(chKm.length-1,i0+1);
+  return [i0,i1];
+}
+function onBridgeSelChange(){
+  drawProfile();
+  drawHydro();
+  drawToday();
+}
+// query-string fragment for the currently selected time — appended to every API call
+function atParam(){
+  if(HIST_AT&&MODE==="historic") return "&at="+encodeURIComponent(HIST_AT);
+  if(MODE==="live"&&FUTURE_OFFSET_H>0){
+    const d=new Date(Date.now()+FUTURE_OFFSET_H*3600000);
+    return "&at="+encodeURIComponent(d.toISOString().replace(/\.\d{3}Z$/,"Z"));
+  }
+  return "";
+}
+function riverParam(amp){return ACTIVE_RIVER?(amp?"&":"?")+"river="+encodeURIComponent(ACTIVE_RIVER):(amp?"":"?");}
+// minutes EAST of UTC for this browser (IST => +330) — lets the Today panel's
+// calendar day / "now" hour match the viewer's wall clock instead of always UTC
+function tzParam(){return "&tz="+(-new Date().getTimezoneOffset());}
+
+// ── simulation clock (ticks every second; live=real local clock, historic=selected hour) ──
+// Shown in the browser's local time zone, same as the Today chart's hour
+// axis. While previewing forward (FUTURE_OFFSET_H>0) it shows that future
+// instant, not real "now" — Live mode itself is never left for a forward step.
+function _tickSimClock(){
+  const el=$("simClock");
+  if(!el)return;
+  if(MODE==="live"){
+    if(FUTURE_OFFSET_H>0){
+      const d=new Date(Date.now()+FUTURE_OFFSET_H*3600000);
+      el.textContent=d.toLocaleString()+" (preview +"+FUTURE_OFFSET_H+"h)";
+    }else{
+      el.textContent=new Date().toLocaleString()+" (live)";
+    }
+  }else if(HIST_AT){
+    el.textContent=new Date(HIST_AT).toLocaleString()+" (historic)";
+  }
+}
+setInterval(_tickSimClock,1000);
+
+// ── live / historic mode ────────────────────────────────────────────────
+function setMode(mode){
+  MODE=mode;
+  FUTURE_OFFSET_H=0;
+  $("modeLive").className="mode-pill"+(mode==="live"?"":" off");
+  $("modeHist").className="mode-pill"+(mode==="historic"?"":" off");
+  $("histPickers").style.display=mode==="historic"?"flex":"none";
+  $("liveNote").style.display=mode==="live"?"inline":"none";
+  if(mode==="live"){
+    HIST_AT=null;
+    startLiveTimer();
+  }else{
+    stopLiveTimer();
+    if(!HIST_AT) onHistChange();
+  }
+  refreshAll();
+}
+
+function onHistChange(){
+  const d=$("histDate").value, h=$("histHour").value;
+  if(!d||h==="")return;
+  HIST_AT=`${d}T${h.padStart(2,"0")}:00:00Z`;
+  refreshAll();
+}
+
+// manual step: back always drops into Historic at a fixed past hour (as
+// before). Forward, while still Live, only nudges FUTURE_OFFSET_H — it
+// previews the coming hours (forecast) without switching to Historic mode
+// or touching the Historic date/hour picker; it keeps auto-refreshing every
+// minute, riding along with real time (now + offset) the same as true Live.
+function stepHistoric(direction){
+  const stepH=parseInt($("stepHours").value)||1;
+
+  if(MODE==="live"){
+    if(direction>0){
+      FUTURE_OFFSET_H+=stepH;
+      refreshAll();
+      return;
+    }
+    if(FUTURE_OFFSET_H>0){
+      FUTURE_OFFSET_H=Math.max(0, FUTURE_OFFSET_H-stepH);
+      refreshAll();
+      return;
+    }
+    // FUTURE_OFFSET_H is already 0 and stepping further back — this is
+    // where we genuinely leave Live and drop into Historic below.
+  }
+
+  let base;
+  if(MODE==="historic"&&HIST_AT){
+    base=new Date(HIST_AT);
+  }else{
+    base=new Date();   // was live — step relative to right now
+  }
+  base.setUTCHours(base.getUTCHours()+stepH*direction);
+  const yyyy=base.getUTCFullYear(), mm=String(base.getUTCMonth()+1).padStart(2,"0"), dd=String(base.getUTCDate()).padStart(2,"0");
+  const hh=base.getUTCHours();
+  const minDate=META?META.epoch_date:"2026-01-01";
+  const maxDate=META?META.today_date:yyyy+"-"+mm+"-"+dd;
+  let dateStr=`${yyyy}-${mm}-${dd}`;
+  if(dateStr<minDate)dateStr=minDate;
+  if(dateStr>maxDate)dateStr=maxDate;
+  MODE="historic";
+  FUTURE_OFFSET_H=0;
+  $("modeLive").className="mode-pill off";
+  $("modeHist").className="mode-pill";
+  $("histPickers").style.display="flex";
+  $("liveNote").style.display="none";
+  stopLiveTimer();
+  $("histDate").value=dateStr;
+  _populateHistPickers();
+  const cappedHour=Math.min(hh,parseInt($("histHour").options[$("histHour").options.length-1]?.value||"23"));
+  $("histHour").value=String(cappedHour);
+  HIST_AT=`${dateStr}T${String(cappedHour).padStart(2,"0")}:00:00Z`;
+  refreshAll();
+}
+
+function startLiveTimer(){
+  stopLiveTimer();
+  // "live" = minute-level: re-poll every 60s so discharge/stage/hydrograph/
+  // alerts/margins all move forward automatically, everywhere, without a
+  // page reload.
+  _liveTimer=setInterval(()=>{ if(MODE==="live") refreshAll(); }, 60000);
+}
+function stopLiveTimer(){ if(_liveTimer){clearInterval(_liveTimer); _liveTimer=null;} }
+
+function _populateHistPickers(){
+  const dInput=$("histDate");
+  dInput.min=META.epoch_date; dInput.max=META.today_date;
+  if(!dInput.value) dInput.value=META.today_date;
+  const hSel=$("histHour");
+  const cur=hSel.value;
+  hSel.innerHTML="";
+  for(let h=0;h<=23;h++){
+    const opt=document.createElement("option");
+    opt.value=String(h); opt.textContent=String(h).padStart(2,"0")+":00";
+    hSel.appendChild(opt);
+  }
+  hSel.value=cur||"0";
+}
+
+// ── KML upload ───────────────────────────────────────────────────────────
+// Deep link back to a specific uploaded river's data — opens straight into
+// that river (via the ?river= handling in init()) instead of the blank picker.
+function _riverLink(name){
+  return location.origin+location.pathname+"?river="+encodeURIComponent(name);
+}
+async function _copyText(text, btn){
+  try{
+    await navigator.clipboard.writeText(text);
+    const old=btn.textContent; btn.textContent="Copied!";
+    setTimeout(()=>{btn.textContent=old;},1500);
+  }catch(_){
+    prompt("Copy this link:", text);
+  }
+}
+async function uploadKml(){
+  const f=$("kmlFile").files[0];
+  const note=$("uploadNote");
+  if(!f){note.textContent="Choose a .kml file first.";note.style.color="var(--danger)";return;}
+  note.textContent="Uploading & deriving chainage / bridges from "+f.name+"…";
+  note.style.color="var(--muted)";
+  try{
+    const text=await f.text();
+    const name=encodeURIComponent(f.name.replace(/\.kml$/i,"").replace(/[_-]+/g," ").trim()||"Uploaded river");
+    const r=await fetch("/api/upload_kml?name="+name,{method:"POST",body:text});
+    const d=await r.json();
+    if(!r.ok||d.error){note.textContent="Upload failed: "+(d.error||r.status);note.style.color="var(--danger)";return;}
+    note.innerHTML="";
+    const summary=document.createElement("div");
+    summary.style.color="#1b5e20";
+    summary.textContent=`Added "${d.display_name}" — ${d.reach_km} km, ${d.n_stations} stations @ ${d.chainage_step_m} m, `+
+      `${d.n_bridges} bridge(s), ${d.n_confluences} confluence(s) (${d.landmarks_source} landmarks).`;
+    note.appendChild(summary);
+
+    const linkRow=document.createElement("div");
+    linkRow.style.cssText="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap";
+    const linkLabel=document.createElement("span");
+    linkLabel.textContent="Shareable link (open in a new tab/window — jumps straight to this river):";
+    const a=document.createElement("a");
+    a.href=_riverLink(d.display_name);
+    a.target="_blank";
+    a.rel="noopener";
+    a.textContent=_riverLink(d.display_name);
+    const copyBtn=document.createElement("button");
+    copyBtn.textContent="Copy link";
+    copyBtn.style.padding="4px 10px";
+    copyBtn.onclick=()=>_copyText(a.href, copyBtn);
+    linkRow.appendChild(linkLabel); linkRow.appendChild(a); linkRow.appendChild(copyBtn);
+    note.appendChild(linkRow);
+
+    await loadRiverList();
+    ACTIVE_RIVER=d.display_name;
+    $("riverSel").value=ACTIVE_RIVER;
+    await switchRiver(ACTIVE_RIVER);
+  }catch(e){
+    note.textContent="Upload failed: "+e.message; note.style.color="var(--danger)";
+  }
+}
+
+// ── init ──────────────────────────────────────────────────────────────────
+async function init(){
+  if(typeof Chart==="undefined"){$("nochart").style.display="block";}
+  await loadRiverList();
+  // deep link: /?river=<name> (generated after a KML upload — see
+  // uploadKml() below) jumps straight to that river's data instead of
+  // the blank picker, so the link can be opened in a fresh tab/window.
+  const urlRiver=new URLSearchParams(location.search).get("river");
+  if(urlRiver && _riverList.some(r=>r.name===urlRiver)){
+    ACTIVE_RIVER=urlRiver;
+    $("riverSel").value=urlRiver;
+    await switchRiver(urlRiver);
+    return;
+  }
+  // no auto-selected river — dashboard stays on the blank state until the
+  // person picks one from the dropdown or uploads a KML
+  _showBlankState();
+}
+
+let _riverList=[];
+async function loadRiverList(){
+  try{
+    const raw=await j("/api/rivers");
+    const list=Array.isArray(raw)?raw:[];
+    _riverList=list;
+    const sel=$("riverSel");
+    const prev=sel.value;
+    sel.innerHTML='<option value="">— select a river —</option>'+
+      list.map(r=>`<option value="${r.name}">${r.name} (${r.reach_km} km)${r.uploaded?" — uploaded":""}</option>`).join("");
+    sel.value=ACTIVE_RIVER||prev||"";
+  }catch(_){
+    // /api/rivers not yet on server — silently skip, river selector stays empty
+  }
+}
+
+function _showBlankState(){
+  $("blankState").style.display="";
+  $("mainContent").style.display="none";
+}
+function _hideBlankState(){
+  $("blankState").style.display="none";
+  $("mainContent").style.display="";
+}
+
+async function loadRiverData(){
+  const param=ACTIVE_RIVER?"?river="+encodeURIComponent(ACTIVE_RIVER):"";
+  META=await j("/api/meta"+param);
+  META.cell_size_m=(META.chainage_km.length>1)
+    ?(META.chainage_km[1]-META.chainage_km[0])*1000:10;
+  $("reachstat").textContent=META.reach_km+" km · "+META.n_cells+" stations";
+  $("bridgestat").textContent=META.n_bridges+" bridge"+(META.n_bridges===1?"":"s");
+  $("bridgeSel").innerHTML=META.assets.map(a=>`<option value="${a.id}">${a.name}</option>`).join("");
+  $("headsub").textContent=META.river+" River Intelligence · "+META.reach_km+" km reach";
+  $("reachTitle").textContent="Reach location — "+META.river+" (traced from KML, real polygon + extracted centerline)"+
+    (META.reach_span?" — "+META.reach_span:"");
+  _populateHistPickers();
+  _updateRemoveBtn();
+}
+
+async function switchRiver(name){
+  $("riverSel").value=name||"";
+  if(!name){
+    ACTIVE_RIVER=null;
+    stopLiveTimer();
+    _showBlankState();
+    return;
+  }
+  ACTIVE_RIVER=name;
+  _hideBlankState();
+  await loadRiverData();
+  loadMap();
+  MODE="live"; HIST_AT=null;
+  $("modeLive").className="mode-pill";
+  $("modeHist").className="mode-pill off";
+  $("histPickers").style.display="none";
+  $("liveNote").style.display="inline";
+  startLiveTimer();
+  _tickSimClock();
+  await refreshAll();
+}
+
+function _updateRemoveBtn(){
+  const btn=$("removeRiverBtn");
+  if(!btn)return;
+  const entry=(_riverList||[]).find(r=>r.name===ACTIVE_RIVER);
+  const removable=entry&&entry.uploaded;
+  btn.style.display=removable?"inline-block":"none";
+}
+
+async function removeRiver(){
+  if(!ACTIVE_RIVER)return;
+  if(!confirm(`Remove "${ACTIVE_RIVER}" from the river list? This deletes its stored KML-derived data.`))return;
+  await fetch("/api/remove_river?name="+encodeURIComponent(ACTIVE_RIVER),{method:"POST"});
+  ACTIVE_RIVER=null;
+  await loadRiverList();
+  await switchRiver(ACTIVE_RIVER);
+}
+
+// ── map ───────────────────────────────────────────────────────────────────
+function _chainageIndices(){
+  const ch=META.chainage_km, n=ch.length;
+  const maxKm=Math.floor(ch[n-1]);
+  const idxs=[];
+  let p=0;
+  for(let km=1;km<=maxKm;km++){
+    while(p<n-1 && Math.abs(ch[p+1]-km)<=Math.abs(ch[p]-km))p++;
+    idxs.push(p);
+  }
+  if(!idxs.length||idxs[idxs.length-1]!==n-1)idxs.push(n-1);
+  return idxs;
+}
+
+function toggleChainageNos(){
+  _chainageNoVisible=!_chainageNoVisible;
+  _chainageMarkers.forEach(m=>{
+    if(typeof L!=="undefined" && m instanceof L.CircleMarker){
+      if(_chainageNoVisible)m.openTooltip(); else m.closeTooltip();
+    }else if(m.setLabel){
+      m.setLabel(_chainageNoVisible?m._chLabel:null);
+    }
+  });
+  const btn=$("chNoToggle");
+  if(btn){
+    btn.textContent="Chainage no.: "+(_chainageNoVisible?"ON":"OFF");
+    btn.style.background=_chainageNoVisible?"#fff9d6":"#f1f1f1";
+    btn.style.color=_chainageNoVisible?"#7a6400":"#777";
+  }
+}
+
+function toggleAreaNames(){
+  _areaNamesVisible=!_areaNamesVisible;
+  Object.values(_assetMarkers).forEach(entry=>{
+    if(entry.type==="leaflet"&&entry.lf){
+      if(_areaNamesVisible)entry.lf.openTooltip(); else entry.lf.closeTooltip();
+    }else if(entry.type==="google"&&entry.gm&&entry.gm.setLabel){
+      entry.gm.setLabel(_areaNamesVisible?entry.gm._areaLabel:null);
+    }
+  });
+  const btn=$("areaNameToggle");
+  if(btn){
+    btn.textContent="Area names: "+(_areaNamesVisible?"ON":"OFF");
+    btn.style.background=_areaNamesVisible?"#e3f2fd":"#f1f1f1";
+    btn.style.color=_areaNamesVisible?"#0b3556":"#777";
+  }
+}
+
+function loadMap(){
+  if(GOOGLE_MAPS_API_KEY&&GOOGLE_MAPS_API_KEY.trim()!==""){
+    window.initGoogleMap=drawGoogleMap;
+    const s=document.createElement("script");
+    s.src="https://maps.googleapis.com/maps/api/js?key="+encodeURIComponent(GOOGLE_MAPS_API_KEY)+"&callback=initGoogleMap";
+    s.onerror=()=>{drawLeafletMap();};
+    document.head.appendChild(s);
+  }else{drawLeafletMap();}
+}
+
+function drawGoogleMap(){
+  const cx=META.lon[Math.floor(META.lon.length/2)];
+  const cy=META.lat[Math.floor(META.lat.length/2)];
+  const map=new google.maps.Map($("map"),{center:{lat:cy,lng:cx},zoom:13,mapTypeId:"satellite",
+    mapTypeControl:true,streetViewControl:false,
+    mapTypeControlOptions:{position:google.maps.ControlPosition.TOP_RIGHT}});
+  new google.maps.Polygon({paths:META.reach_polygon_lonlat.map(([lo,la])=>({lat:la,lng:lo})),
+    strokeColor:"#2dc0fb",strokeWeight:2,fillColor:"#2dc0fb",fillOpacity:.12}).setMap(map);
+  new google.maps.Polyline({path:META.lat.map((la,i)=>({lat:la,lng:META.lon[i]})),
+    strokeColor:"#ffee58",strokeWeight:3}).setMap(map);
+  const chIdx=_chainageIndices();
+  _chainageMarkers=[];
+  chIdx.forEach((i,n)=>{
+    const gm=new google.maps.Marker({position:{lat:META.lat[i],lng:META.lon[i]},map,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:2.5,
+        fillColor:"#ffe000",fillOpacity:1,strokeWeight:0},
+      label:_chainageNoVisible?{text:String(n+1),color:"#ffe000",fontSize:"10px",fontWeight:"700"}:null,
+      title:"Chainage "+META.chainage_km[i].toFixed(2)+" km (point "+(n+1)+" of "+chIdx.length+")"});
+    gm._chLabel={text:String(n+1),color:"#ffe000",fontSize:"10px",fontWeight:"700"};
+    _chainageMarkers.push(gm);
+  });
+  _assetMarkers={};
+  META.assets.forEach(a=>{
+    const m=new google.maps.Marker({position:{lat:a.lat,lng:a.lon},map,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:7,fillColor:"#c62828",fillOpacity:.95,strokeWeight:0},
+      label:_areaNamesVisible?{text:a.name,color:"#0b3556",fontSize:"11px",fontWeight:"700",className:"gm-area-label"}:null});
+    m._areaLabel={text:a.name,color:"#0b3556",fontSize:"11px",fontWeight:"700",className:"gm-area-label"};
+    m.addListener("click",()=>new google.maps.InfoWindow({
+      content:`<b>${a.name}</b><br>chainage ${(a.chainage_m/1000).toFixed(2)} km`}).open(map,m));
+    _assetMarkers[a.id]={gm:m,type:"google"};
+  });
+  const bounds=new google.maps.LatLngBounds();
+  META.reach_polygon_lonlat.forEach(([lo,la])=>bounds.extend({lat:la,lng:lo}));
+  map.fitBounds(bounds);
+}
+
+function _assetDivIcon(status){
+  return L.divIcon({className:"",
+    html:`<div class="map-asset-wrap"><div class="map-asset-dot ${status||""}"></div></div>`,
+    iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-13]});
+}
+
+function drawLeafletMap(){
+  if(typeof L==="undefined")return;
+  if(_leafletMap){_leafletMap.remove();_leafletMap=null;}
+  _assetMarkers={};
+  const cx=META.lon[Math.floor(META.lon.length/2)];
+  const cy=META.lat[Math.floor(META.lat.length/2)];
+  _leafletMap=L.map('map').setView([cy,cx],14);
+  const map=_leafletMap;
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:19,attribution:'Tiles &copy; Esri'});
+  const st=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom:19,attribution:'&copy; OpenStreetMap contributors'});
+  sat.addTo(map);
+  L.control.layers({"Satellite":sat,"Street map":st},null,{position:'topright'}).addTo(map);
+  const poly=META.reach_polygon_lonlat.map(([lo,la])=>[la,lo]);
+  L.polygon(poly,{color:'#2dc0fb',weight:2,fillOpacity:.12}).addTo(map);
+  L.polyline(META.lat.map((la,i)=>[la,META.lon[i]]),{color:'#ffee58',weight:3}).addTo(map);
+  // chainage dots — every ~1 km along centerline, yellow, numbered 1,2,3...last, click shows chainage
+  const chIdx=_chainageIndices();
+  _chainageMarkers=[];
+  chIdx.forEach((i,n)=>{
+    const la=META.lat[i],lo=META.lon[i],ch=META.chainage_km[i];
+    const cm=L.circleMarker([la,lo],{radius:2.5,color:'#ffe000',fillColor:'#ffe000',
+      fillOpacity:1,weight:0})
+      .bindTooltip(String(n+1),{permanent:true,direction:'top',offset:[0,-2],className:'chainage-label'})
+      .bindPopup(`<b>Chainage ${ch.toFixed(2)} km</b> (point ${n+1} of ${chIdx.length})`)
+      .addTo(map);
+    _chainageMarkers.push(cm);
+  });
+  if(!_chainageNoVisible)_chainageMarkers.forEach(m=>m.closeTooltip());
+  META.assets.forEach(a=>{
+    const mk=L.marker([a.lat,a.lon],{icon:_assetDivIcon("")})
+      .bindTooltip(a.name,{permanent:true,direction:'right',offset:[10,0],className:'area-name-label'})
+      .bindPopup(`<b>${a.name}</b><br>Chainage ${(a.chainage_m/1000).toFixed(2)} km<br><span style="color:#888;font-size:11px">Status updates on refresh</span>`)
+      .addTo(map);
+    _assetMarkers[a.id]={lf:mk,type:"leaflet"};
+  });
+  if(!_areaNamesVisible)Object.values(_assetMarkers).forEach(e=>e.lf&&e.lf.closeTooltip());
+  map.fitBounds(L.latLngBounds(poly),{padding:[20,20]});
+}
+
+const _SCOL={DANGER:'#c62828',WARNING:'#a68b00',WATCH:'#2e7d32',SAFE:'#1565c0'};
+
+function updateMapDanger(margins){
+  if(!margins||!margins.length)return;
+  margins.forEach(m=>{
+    const entry=_assetMarkers[m.id];
+    if(!entry)return;
+    const html=`<b>${m.name}</b><br>`+
+      `Status: <b style="color:${_SCOL[m.status]||'#333'}">${m.status}</b><br>`+
+      `Margin: ${m.margin_now_m>0?"+":""}${m.margin_now_m} m<br>`+
+      `P(exceed 72 h): ${(m.p_exceed_72h*100).toFixed(0)}%`+
+      (m.time_to_threshold_h?`<br>~${m.time_to_threshold_h} h to threshold`:"");
+    if(entry.type==="leaflet"){
+      const el=entry.lf.getElement();
+      if(el){const d=el.querySelector('.map-asset-dot');if(d)d.className='map-asset-dot '+m.status;}
+      entry.lf.setPopupContent(html);
+    }else if(entry.type==="google"){
+      const co={DANGER:'#c62828',WARNING:'#fdd835',WATCH:'#2e7d32',SAFE:'#1565c0'};
+      entry.gm.setIcon({path:google.maps.SymbolPath.CIRCLE,scale:7,
+        fillColor:co[m.status]||'#c62828',fillOpacity:.95,strokeWeight:0});
+    }
+  });
+}
+
+// ── data refresh ──────────────────────────────────────────────────────────
+async function refreshAll(){
+  const rp=riverParam(false)+atParam();
+  const st=await j("/api/state"+rp);
+  $("qnow").textContent=st.q_now+" m³/s (synthetic)";
+  window._wseNow=st.wse;
+  await drawProfile();
+  await drawHydro();
+  await drawToday();
+  await drawBoard();
+  await drawAlerts();
+}
+
+async function drawProfile(){
+  const rp2=riverParam(true)+atParam();
+  if(typeof Chart==="undefined")return;
+  const lead=parseInt($("lead").value);
+  const fc=await j("/api/forecast/profile?lead="+lead+rp2);
+  const idx=_bridgeIdx();
+  const [i0,i1]=_segmentCellRange(idx);
+  $("profileSegLbl").textContent=_segmentLabel(idx);
+  const slice=arr=>arr.slice(i0,i1+1);
+  const x=decimateAdaptive(slice(META.chainage_km));
+  const bed=decimateAdaptive(slice(META.bed)),crest=decimateAdaptive(slice(META.crest));
+  const sig=decimateAdaptive(slice(META.sigma_bed));
+  const bedHi=bed.map((v,i)=>v+sig[i]),bedLo=bed.map((v,i)=>v-sig[i]);
+  const ds=[
+    {label:"P90",data:decimateAdaptive(slice(fc.p90)),borderWidth:0,pointRadius:0,fill:false,backgroundColor:"rgba(126,87,194,.18)"},
+    {label:"P10",data:decimateAdaptive(slice(fc.p10)),borderWidth:0,pointRadius:0,fill:"-1",backgroundColor:"rgba(126,87,194,.18)"},
+    {label:"Forecast median (+"+lead+" h)",data:decimateAdaptive(slice(fc.median)),borderColor:"#7e57c2",borderWidth:2,pointRadius:0,fill:false},
+    {label:"Observed WSE now",data:decimateAdaptive(slice(window._wseNow)),borderColor:"#1f77b4",borderWidth:2,pointRadius:0,fill:false},
+    {label:"bed+σ",data:bedHi,borderWidth:0,pointRadius:0,fill:false,backgroundColor:"rgba(141,110,99,.25)"},
+    {label:"bed−σ",data:bedLo,borderWidth:0,pointRadius:0,fill:"-1",backgroundColor:"rgba(141,110,99,.25)"},
+    {label:"Inferred bed",data:bed,borderColor:"#8d6e63",borderWidth:1.5,pointRadius:0,fill:false},
+    {label:"Crest",data:crest,borderColor:"#37474f",borderWidth:1.5,borderDash:[6,3],pointRadius:0,fill:false},
+  ];
+  const cfg={type:"line",data:{labels:x,datasets:ds},
+    options:{animation:false,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:"Chainage (km)"},ticks:{maxTicksLimit:13}},
+              y:{title:{display:true,text:"Elevation (m, local datum)"}}}}};
+  if(profileChart){profileChart.data=cfg.data;profileChart.update();}
+  else profileChart=new Chart($("profile"),cfg);
+}
+
+async function drawHydro(){
+  const rp2=riverParam(true)+atParam();
+  if(typeof Chart==="undefined")return;
+  const idx=_bridgeIdx();
+  const a=META.assets[idx];
+  $("hydroPointLbl").textContent=a.name;
+  const cell=Math.round(a.chainage_m/META.cell_size_m);
+  const h=await j("/api/hydrograph?cell="+cell+rp2);
+  const past=h.observed.length;
+  const labels=[];
+  for(let i=-past+1;i<=0;i++)labels.push(i);
+  for(let k=1;k<=h.forecast.median.length;k++)labels.push("+"+k);
+  const pad=Array(past).fill(null);
+  const thr=Array(labels.length).fill(a.threshold);
+  const ds=[
+    {label:"P90",data:pad.concat(h.forecast.p90),borderWidth:0,pointRadius:0,backgroundColor:"rgba(126,87,194,.18)",fill:false},
+    {label:"P10",data:pad.concat(h.forecast.p10),borderWidth:0,pointRadius:0,backgroundColor:"rgba(126,87,194,.18)",fill:"-1"},
+    {label:"Forecast median",data:pad.concat(h.forecast.median),borderColor:"#7e57c2",borderWidth:2,pointRadius:0,fill:false},
+    {label:"Observed",data:h.observed.concat(Array(h.forecast.median.length).fill(null)),borderColor:"#1f77b4",borderWidth:2,pointRadius:0,fill:false},
+    {label:"Threshold",data:thr,borderColor:"#d32f2f",borderDash:[5,4],borderWidth:1.5,pointRadius:0,fill:false},
+  ];
+  const cfg={type:"line",data:{labels,datasets:ds},
+    options:{animation:false,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:"Hours (relative to now)"},ticks:{maxTicksLimit:12}},
+              y:{title:{display:true,text:"WSE (m)"}}}}};
+  if(hydroChart){hydroChart.data=cfg.data;hydroChart.update();}
+  else hydroChart=new Chart($("hydro"),cfg);
+}
+
+let todayQChart=null;
+let _todayDate=null;
+async function drawToday(){
+  if(typeof Chart==="undefined")return;
+  const idx=_bridgeIdx();
+  const a=META.assets[idx];
+  const cell=Math.round(a.chainage_m/META.cell_size_m);
+  const rp2=riverParam(true)+atParam()+tzParam();
+  const t=await j("/api/today?cell="+cell+rp2);
+  _todayDate=t.date;
+  $("todayDateLbl").textContent="— "+_segmentLabel(idx)+" · "+t.date+" (hour "+String(t.current_hour).padStart(2,"0")+":00 = now, local time)";
+  const labels=t.hours.map(h=>String(h).padStart(2,"0")+":00");
+
+  const qDs=[
+    {label:"P90",data:t.q_forecast_p90,borderWidth:0,pointRadius:0,backgroundColor:"rgba(126,87,194,.18)",fill:false},
+    {label:"P10",data:t.q_forecast_p10,borderWidth:0,pointRadius:0,backgroundColor:"rgba(126,87,194,.18)",fill:"-1"},
+    {label:"Forecast median",data:t.q_forecast_median,borderColor:"#7e57c2",borderWidth:2,borderDash:[6,3],pointRadius:0,fill:false},
+    {label:"Observed",data:t.q_observed,borderColor:"#1f77b4",borderWidth:2,pointRadius:0,fill:false},
+  ];
+  const qCfg={type:"line",data:{labels,datasets:qDs},
+    options:{animation:false,plugins:{legend:{display:false}},
+      scales:{x:{title:{display:true,text:"Hour of day (local time)"},ticks:{maxTicksLimit:12}},
+              y:{title:{display:true,text:"Discharge (m³/s)"}}}}};
+  if(todayQChart){todayQChart.data=qCfg.data;todayQChart.update();}
+  else todayQChart=new Chart($("todayQ"),qCfg);
+
+  // keep the scrub slider in sync with whichever hour is actually showing —
+  // "now" in Live mode (auto-advances every minute), or the picked hour in Historic
+  const slider=$("todayHourSlider");
+  if(slider && document.activeElement!==slider){
+    slider.value=t.current_hour;
+    $("todayHourLbl").textContent=String(t.current_hour).padStart(2,"0")+":00";
+  }
+}
+
+// dragging the slider scrubs through today's hours — switches into Historic
+// mode at that hour (of the day currently shown) so every panel updates to match
+function onTodaySlider(val){
+  const h=parseInt(val);
+  $("todayHourLbl").textContent=String(h).padStart(2,"0")+":00";
+  const date=_todayDate||META.today_date;
+  // slider hour is LOCAL (matches the Today chart's "local time" axis) —
+  // build a local Date for date@h:00 and read back its UTC fields so the
+  // Historic picker (which is UTC-based) lands on the same real instant.
+  const [yy,mm,dd]=date.split("-").map(Number);
+  const localDt=new Date(yy,mm-1,dd,h,0,0,0);
+  const uYyyy=localDt.getUTCFullYear(), uMm=String(localDt.getUTCMonth()+1).padStart(2,"0"),
+        uDd=String(localDt.getUTCDate()).padStart(2,"0"), uHh=localDt.getUTCHours();
+  const utcDate=`${uYyyy}-${uMm}-${uDd}`;
+  MODE="historic";
+  $("modeLive").className="mode-pill off";
+  $("modeHist").className="mode-pill";
+  $("histPickers").style.display="flex";
+  $("liveNote").style.display="none";
+  stopLiveTimer();
+  $("histDate").value=utcDate;
+  _populateHistPickers();
+  $("histHour").value=String(uHh);
+  HIST_AT=`${utcDate}T${String(uHh).padStart(2,"0")}:00:00Z`;
+  refreshAll();
+}
+
+async function drawBoard(){
+  const rp=riverParam(false)+atParam();
+  const ms=await j("/api/margins"+rp);
+  const cardsHtml=ms.map(m=>`
+    <div class="asset ${m.status}">
+      <b>${m.name}</b>
+      <div class="m">${m.margin_now_m>0?"+":""}${m.margin_now_m} m</div>
+      <div>P(exceed 72 h): ${(m.p_exceed_72h*100).toFixed(0)}%</div>
+      <div>${m.time_to_threshold_h?("~"+m.time_to_threshold_h+" h to threshold"):"no median crossing"}</div>
+    </div>`).join("");
+  $("board").innerHTML=cardsHtml;
+  updateMapDanger(ms);
+}
+
+async function drawAlerts(){
+  const rp=riverParam(false)+atParam();
+  const al=await j("/api/alerts"+rp);
+  $("alerts").innerHTML=al.length?al.map(a=>`
+    <div class="alert ${a.severity}"><b>[${a.severity}]</b> ${a.message}</div>`).join("")
+    :'<div class="note">No active alerts. All margins within safe band.</div>';
+}
+
+(async()=>{
+  const overlay=$("loadOverlay");
+  const msg=$("loadMsg");
+  try{
+    await init();
+    overlay.classList.add("done");
+    setTimeout(()=>overlay.style.display="none",450);
+  }catch(e){
+    msg.textContent="Load error: "+e.message;
+    msg.style.color="var(--danger)";
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>

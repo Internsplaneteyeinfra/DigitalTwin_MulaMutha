@@ -1,0 +1,17 @@
+# Only needed for the DEV-TOOL scripts (re-extracting geometry/depth from
+# your raw KML/xlsx files):
+#   extract_centerline_mula_mutha.py, extract_centerline_mithi.py,
+#   reverse_and_tag_landmarks_mula_mutha.py, tag_mithi_landmarks.py,
+#   build_depth_profile_mula_mutha.py
+#
+# NOT needed to just run the app (run.py / naditwin/engine.py / server.py
+# use only the pre-computed JSON files already in naditwin/rivers/ + the
+# Python standard library).
+
+numpy==2.4.4
+scipy==1.17.1
+networkx==3.6.1
+shapely==2.1.2
+pyproj==3.7.2
+pandas==3.0.2
+openpyxl==3.1.5
