@@ -215,6 +215,7 @@ class Handler(BaseHTTPRequestHandler):
                     key=summary["key"], display_name=display_name,
                     product_label=(f"NadiTwin — {display_name} (uploaded KML, "
                                     f"{summary['landmarks_source']} landmarks)"),
+                    data_dir=kml_ingest.UPLOADS_DIR,
                 )
                 ENGINES[display_name] = TwinEngine(rd, seed=_SEED, gauge_csv=_GAUGE_CSV)
                 summary["display_name"] = display_name
